@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.felix.gulimall.product.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +32,9 @@ public class AttrGroupController {
     @Autowired
     private AttrGroupService attrGroupService;
 
+    @Autowired
+    private CategoryService categoryService;
+
     /**
      * 列表
      */
@@ -42,6 +46,16 @@ public class AttrGroupController {
         return R.ok().put("page", page);
     }
 
+    /**
+     *
+     */
+    @RequestMapping("/list/{catelogId}")
+    public R list(@RequestParam Map<String, Object> params, @PathVariable("catelogId") Long catelogId){
+//        PageUtils page = attrGroupService.queryPage(params);
+        PageUtils page = attrGroupService.queryPage(params,catelogId);
+        return R.ok().put("page", page);
+    }
+
 
     /**
      * 信息
@@ -50,9 +64,24 @@ public class AttrGroupController {
     //@RequiresPermissions("product:attrgroup:info")
     public R info(@PathVariable("attrGroupId") Long attrGroupId){
 		AttrGroupEntity attrGroup = attrGroupService.getById(attrGroupId);
+        Long catelogId = attrGroup.getCatelogId();
+        Long[] path = categoryService.findCatelogPath(catelogId);
+        attrGroup.setCatelogPath(path);
 
         return R.ok().put("attrGroup", attrGroup);
     }
+
+    /**
+     * 信息
+     */
+//    @RequestMapping("/info/{attrId}")
+//    //@RequiresPermissions("product:attr:info")
+//    public R info(@PathVariable("attrId") Long attrId){
+//        //AttrEntity attr = attrService.getById(attrId);
+//        AttrResponseVo respVo = attrService.getAttrInfo(attrId);
+//
+//        return R.ok().put("attr", respVo);
+//    }
 
     /**
      * 保存

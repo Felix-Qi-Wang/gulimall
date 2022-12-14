@@ -11,6 +11,7 @@ import com.felix.common.utils.Query;
 import com.felix.gulimall.product.dao.BrandDao;
 import com.felix.gulimall.product.entity.BrandEntity;
 import com.felix.gulimall.product.service.BrandService;
+import org.springframework.util.StringUtils;
 
 
 @Service("brandService")
@@ -18,6 +19,13 @@ public class BrandServiceImpl extends ServiceImpl<BrandDao, BrandEntity> impleme
 
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
+        String key = (String) params.get("key");
+        QueryWrapper<BrandEntity> queryWrapper = new QueryWrapper<>();
+        if (!StringUtils.isEmpty(key)) {
+            queryWrapper.eq("brand_id", key).or().like("name", key);
+
+        }
+
         IPage<BrandEntity> page = this.page(
                 new Query<BrandEntity>().getPage(params),
                 new QueryWrapper<BrandEntity>()
