@@ -5,9 +5,14 @@ import com.felix.gulimall.product.dao.BrandDao;
 import com.felix.gulimall.product.dao.CategoryDao;
 import com.felix.gulimall.product.entity.BrandEntity;
 import com.felix.gulimall.product.entity.CategoryEntity;
+import com.felix.gulimall.product.service.BrandService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -18,15 +23,23 @@ import com.felix.gulimall.product.dao.CategoryBrandRelationDao;
 import com.felix.gulimall.product.entity.CategoryBrandRelationEntity;
 import com.felix.gulimall.product.service.CategoryBrandRelationService;
 
+import javax.annotation.Resource;
+
 
 @Service("categoryBrandRelationService")
 public class CategoryBrandRelationServiceImpl extends ServiceImpl<CategoryBrandRelationDao, CategoryBrandRelationEntity> implements CategoryBrandRelationService {
 
-    @Autowired
-    BrandDao brandDao;
+    @Resource
+    private BrandDao brandDao;
+
+    @Resource
+    private CategoryDao categoryDao;
 
     @Autowired
-    CategoryDao categoryDao;
+    private CategoryBrandRelationDao relationDao;
+
+    @Autowired
+    private BrandService brandService;
 
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
@@ -40,14 +53,28 @@ public class CategoryBrandRelationServiceImpl extends ServiceImpl<CategoryBrandR
 
     @Override
     public void saveDetail(CategoryBrandRelationEntity categoryBrandRelation) {
+//        Long brandId = categoryBrandRelation.getBrandId();
+//        Long catelogId = categoryBrandRelation.getCatelogId();
+//
+//        BrandEntity brandEntity = brandDao.selectById(brandId);
+//        CategoryEntity categoryEntity = categoryDao.selectById(catelogId);
+//        categoryBrandRelation.setBrandName(brandEntity.getName());
+//        categoryBrandRelation.setCatelogName(categoryEntity.getName());
+//        this.save(categoryBrandRelation);
         Long brandId = categoryBrandRelation.getBrandId();
         Long catelogId = categoryBrandRelation.getCatelogId();
 
+        //1、查询品牌详细信息
         BrandEntity brandEntity = brandDao.selectById(brandId);
+        //2、查询分类详细信息
         CategoryEntity categoryEntity = categoryDao.selectById(catelogId);
+
+        //将信息保存到categoryBrandRelation中
         categoryBrandRelation.setBrandName(brandEntity.getName());
         categoryBrandRelation.setCatelogName(categoryEntity.getName());
-        this.save(categoryBrandRelation);
+
+        // 保存到数据库中
+        this.baseMapper.insert(categoryBrandRelation);
 
 
     }
@@ -63,6 +90,20 @@ public class CategoryBrandRelationServiceImpl extends ServiceImpl<CategoryBrandR
     @Override
     public void updateCategory(Long catId, String name) {
         this.baseMapper.updateCategory(catId, name);
+    }
+
+    @Override
+    public List<BrandEntity> getBrandsByCatId(Long catId) {
+        List<CategoryBrandRelationEntity> catelogId = relationDao.selectList(new QueryWrapper<CategoryBrandRelationEntity>().eq("catelog_id", catId));
+
+        List<BrandEntity> collect = catelogId.stream().map(item -> {
+            Long brandId = item.getBrandId();
+            //查询品牌的详情
+            BrandEntity byId = brandService.getById(brandId);
+            return byId;
+        }).collect(Collectors.toList());
+
+        return collect;
     }
 
 }
