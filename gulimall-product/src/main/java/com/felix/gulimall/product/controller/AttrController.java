@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.felix.gulimall.product.entity.ProductAttrValueEntity;
+import com.felix.gulimall.product.service.ProductAttrValueService;
 import com.felix.gulimall.product.vo.AttrRespVo;
 import com.felix.gulimall.product.vo.AttrVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import com.felix.gulimall.product.entity.AttrEntity;
 import com.felix.gulimall.product.service.AttrService;
 import com.felix.common.utils.PageUtils;
 import com.felix.common.utils.R;
+import java.util.List;
 
 
 
@@ -29,6 +32,9 @@ public class AttrController {
     @Autowired
     private AttrService attrService;
 
+    @Autowired
+    private ProductAttrValueService productAttrValueService;
+
     // /product/attr/sale/list/{catelogId}
     // /product/attr/base/list/{catelogId}
     @GetMapping("/{attrType}/list/{catelogId}")
@@ -39,6 +45,19 @@ public class AttrController {
         return R.ok().put("page", page);
 
     }
+
+    /**
+     *  获取spu规格
+     */
+    @GetMapping("/base/listforspu/{spuId}")
+    public R baseAttrlistforspu(@PathVariable("spuId") Long spuId){
+
+        List<ProductAttrValueEntity> entities = productAttrValueService.baseAttrListforspu(spuId);
+
+        return R.ok().put("data",entities);
+    }
+
+
 
     /**
      * 列表
@@ -84,6 +103,18 @@ public class AttrController {
     public R update(@RequestBody AttrVo attr){
 
         attrService.updateAttrById(attr);
+
+        return R.ok();
+    }
+
+
+    ///product/attr/update/{spuId}
+    @PostMapping("/update/{spuId}")
+    //@RequiresPermissions("product:attr:update")
+    public R updateSpuAttr(@PathVariable("spuId") Long spuId,
+                           @RequestBody List<ProductAttrValueEntity> entities){
+
+        productAttrValueService.updateSpuAttr(spuId,entities);
 
         return R.ok();
     }

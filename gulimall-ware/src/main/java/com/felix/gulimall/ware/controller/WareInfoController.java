@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.felix.gulimall.ware.service.WareSkuService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,11 +32,15 @@ public class WareInfoController {
     @Autowired
     private WareInfoService wareInfoService;
 
+
+
+    /**
+     * 列表
+     */
     /**
      * 列表
      */
     @RequestMapping("/list")
-    ////@RequiresPermissions("ware:wareinfo:list")
     public R list(@RequestParam Map<String, Object> params){
         PageUtils page = wareInfoService.queryPage(params);
 
