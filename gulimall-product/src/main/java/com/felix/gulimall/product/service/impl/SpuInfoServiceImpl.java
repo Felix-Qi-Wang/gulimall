@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.felix.common.constant.ProductConstant;
+import com.felix.common.es.SkuEsModel;
 import com.felix.common.to.SkuReductionTo;
 import com.felix.common.to.SpuBoundTo;
 import com.felix.common.utils.PageUtils;
@@ -346,8 +347,14 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
         return new PageUtils(page);
     }
 
-//    @GlobalTransactional(rollbackFor = Exception.class)
-//    // @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void up(Long spuId) {
+
+    }
+
+
+    // @GlobalTransactional(rollbackFor = Exception.class)
+    // @Transactional(rollbackFor = Exception.class)
 //    @Override
 //    public void up(Long spuId) {
 //

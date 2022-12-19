@@ -15,7 +15,8 @@ package com.felix.common.exception;
  */
 public enum BizCodeEnume {
 
-    UNKNOW_EXEPTION(10000,"系统未知异常"),
+
+    UNKNOWN_EXCEPTION(10000,"系统未知异常"),
     VALID_EXCEPTION( 10001,"参数格式校验失败"),
     SMS_CODE_EXCEPTION( 10002,"请求频率太高，请稍后再试"),
     USER_EXIST_EXCEPTION( 15001,"用户存在异常"),

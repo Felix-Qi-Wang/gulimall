@@ -40,6 +40,6 @@ public class GulimallExceptionControllerAdvice {
     public R handleException(Throwable throwable){
 
         log.error("错误：",throwable);
-        return R.error(BizCodeEnume.UNKNOW_EXEPTION.getCode(),BizCodeEnume.UNKNOW_EXEPTION.getMsg());
+        return R.error(BizCodeEnume.UNKNOWN_EXCEPTION.getCode(),BizCodeEnume.UNKNOWN_EXCEPTION.getMsg());
     }
 }
