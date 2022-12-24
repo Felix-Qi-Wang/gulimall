@@ -21,7 +21,7 @@ public class Catelog2Vo {
     /**
      * 三级子分类
      */
-    private List<Category3Vo> catalog3List;
+    private List<Catelog3Vo> catalog3List;
 
     private String id;
 
@@ -34,7 +34,7 @@ public class Catelog2Vo {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class Category3Vo {
+    public static class Catelog3Vo {
 
         /**
          * 父分类、二级分类id

@@ -1,9 +1,11 @@
 package com.felix.gulimall.ware.controller;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.felix.common.to.SkuHasStockVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +38,17 @@ public class WareSkuController {
 
         return R.ok().put("page", page);
     }
+
+    /**
+     * 查询sku是否有库存
+     * 返回skuId 和 stock库存量
+     */
+    @PostMapping("/hasStock")
+    public R getSkuHasStock(@RequestBody List<Long> SkuIds){
+        List<SkuHasStockVo> vos = wareSkuService.getSkuHasStock(SkuIds);
+        return R.ok().setData(vos);
+    }
+
 
 
     /**

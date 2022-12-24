@@ -2,15 +2,9 @@ package com.felix.gulimall.product.fallback;
 
 import com.felix.common.exception.BizCodeEnume;
 import com.felix.common.utils.R;
-import com.xunqi.gulimall.product.feign.SeckillFeignService;
+import com.felix.gulimall.product.feign.SeckillFeignService;
 import org.springframework.stereotype.Component;
 
-/**
- * @Description:
- * @Created: with IntelliJ IDEA.
- * @author: 夏沫止水
- * @createTime: 2020-07-13 14:45
- **/
 
 @Component
 public class SeckillFeignServiceFallBack implements SeckillFeignService {
