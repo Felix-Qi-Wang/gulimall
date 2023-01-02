@@ -4,14 +4,17 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.felix.gulimall.product.service.CategoryBrandRelationService;
 import com.felix.gulimall.product.vo.Catelog2Vo;
+import org.redisson.api.RLock;
+import org.redisson.api.RReadWriteLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,9 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryDao, CategoryEntity
 
     @Autowired
     StringRedisTemplate redisTemplate;
+
+    @Autowired
+    RedissonClient redissonClient;
 
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
@@ -88,6 +94,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryDao, CategoryEntity
     }
 
     @Override
+    @Cacheable(value = {"category"},key = "'level1Categorys'")
     public List<CategoryEntity> getLevel1Categorys() {
         List<CategoryEntity> categoryEntities = baseMapper.selectList(new QueryWrapper<CategoryEntity>().eq("parent_cid", 0));
         return categoryEntities;
@@ -151,6 +158,78 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryDao, CategoryEntity
         //转为我们指定的对象。
         Map<String,List<Catelog2Vo>> result = JSON.parseObject(catalogJSON,new TypeReference<Map<String,List<Catelog2Vo>>>(){});
         return result;
+    }
+
+    //TODO 产生堆外内存溢出OutOfDirectMemoryError:
+    //1)、springboot2.0以后默认使用lettuce操作redis的客户端，它使用通信
+    //2)、lettuce的bug导致netty堆外内存溢出   可设置：-Dio.netty.maxDirectMemory
+    //解决方案：不能直接使用-Dio.netty.maxDirectMemory去调大堆外内存
+    //1)、升级lettuce客户端。      2）、切换使用jedis
+    // @Override
+    public Map<String, List<Catelog2Vo>> getCatalogJson2() {
+        //给缓存中放json字符串，拿出的json字符串，反序列为能用的对象
+
+        /**
+         * 1、空结果缓存：解决缓存穿透问题
+         * 2、设置过期时间(加随机值)：解决缓存雪崩
+         * 3、加锁：解决缓存击穿问题
+         */
+
+        //1、加入缓存逻辑,缓存中存的数据是json字符串
+        //JSON跨语言。跨平台兼容。
+        ValueOperations<String, String> ops = redisTemplate.opsForValue();
+        String catalogJson = ops.get("catalogJson");
+        if (StringUtils.isEmpty(catalogJson)) {
+            System.out.println("缓存不命中...查询数据库...");
+            //2、缓存中没有数据，查询数据库
+            Map<String, List<Catelog2Vo>> catalogJsonFromDb = getCatalogJsonFromDbWithRedissonLock();
+
+            return catalogJsonFromDb;
+        }
+
+        System.out.println("缓存命中...直接返回...");
+        //转为指定的对象
+        Map<String, List<Catelog2Vo>> result = JSON.parseObject(catalogJson,new TypeReference<Map<String, List<Catelog2Vo>>>(){});
+
+        return result;
+    }
+
+    /**
+     * 缓存里的数据如何和数据库的数据保持一致？？
+     * 缓存数据一致性
+     * 1)、双写模式
+     * 2)、失效模式
+     * @return
+     */
+
+    public Map<String, List<Catelog2Vo>> getCatalogJsonFromDbWithRedissonLock() {
+
+        //1、占分布式锁。去redis占坑
+        //（锁的粒度，越细越快:具体缓存的是某个数据，11号商品） product-11-lock
+        //RLock catalogJsonLock = redissonClient.getLock("catalogJson-lock");
+        //创建读锁
+        RReadWriteLock readWriteLock = redissonClient.getReadWriteLock("catalogJson-lock");
+
+        RLock rLock = readWriteLock.readLock();
+
+        Map<String, List<Catelog2Vo>> dataFromDb = null;
+        try {
+            rLock.lock();
+            //加锁成功...执行业务
+            dataFromDb = getDataFromDB();
+        } finally {
+            rLock.unlock();
+        }
+        //先去redis查询下保证当前的锁是自己的
+        //获取值对比，对比成功删除=原子性 lua脚本解锁
+        // String lockValue = stringRedisTemplate.opsForValue().get("lock");
+        // if (uuid.equals(lockValue)) {
+        //     //删除我自己的锁
+        //     stringRedisTemplate.delete("lock");
+        // }
+
+        return dataFromDb;
+
     }
 
     private Map<String, List<Catelog2Vo>> getDataFromDB() {
@@ -220,6 +299,46 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryDao, CategoryEntity
         }
 
 
+    }
+
+    /**
+     * 从数据库查询并封装数据::分布式锁
+     * @return
+     */
+    public Map<String, List<Catelog2Vo>> getCatalogJsonFromDbWithRedisLock() {
+
+        //1、占分布式锁。去redis占坑      设置过期时间必须和加锁是同步的，保证原子性（避免死锁）
+        String uuid = UUID.randomUUID().toString();
+        Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", uuid,30,TimeUnit.SECONDS);
+        if (lock) {
+            System.out.println("获取分布式锁成功...");
+            Map<String, List<Catelog2Vo>> dataFromDb = null;
+            try {
+                //加锁成功...执行业务
+                dataFromDb = getDataFromDB();
+            } finally {
+                String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+
+                //删除锁
+                redisTemplate.execute(new DefaultRedisScript<Long>(script, Long.class), Arrays.asList("lock"), uuid);
+
+            }
+            //先去redis查询下保证当前的锁是自己的
+            //获取值对比，对比成功删除=原子性 lua脚本解锁
+            // String lockValue = stringRedisTemplate.opsForValue().get("lock");
+            // if (uuid.equals(lockValue)) {
+            //     //删除我自己的锁
+            //     stringRedisTemplate.delete("lock");
+            // }
+
+            return dataFromDb;
+        } else {
+            System.out.println("获取分布式锁失败...等待重试...");
+            //加锁失败...重试机制
+            //休眠一百毫秒
+            try { TimeUnit.MILLISECONDS.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+            return getCatalogJsonFromDbWithRedisLock();     //自旋的方式
+        }
     }
 
     private List<CategoryEntity> getParent_cid(List<CategoryEntity> selectList,Long parentCid) {
